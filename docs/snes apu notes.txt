@@ -1,0 +1,53 @@
+SNES APU notes
+
+SNES APU contains the SPC700 CPU, the DSP (Digital Sound Processor), 64KB RAM (2 32K chips), and a DAC
+SPC contains embedded 64byte BootROM
+
+SPC is responsible for communcating with the main CPU and running music related code. Can also do other calculations if desired
+64K ram = ARAM, where music data is stored + general purpose memory (instrument samples, echo buffer is allocated when enabled, SFX and song data, and executable code)
+executable code cannot be run off cartridge ROM, must be transfered to ARAM before execution
+
+DPC processes the digital audio signal, and outputs a digital stereo signal
+
+CPU and SPC communication:
+Main CPU and SPC have 4 8 bit I/O registers to connect to eachother
+
+Main CPU: 0x2140 - 0x2143
+SPC: 0xF4 - 0xF7
+
+large chunks of data must be sent in pieces, usually done byte by byte
+
+Each register has two one byte buffers, one holds incoming data from the CPU, one holds the outgoing data from the SPC
+This allows each port to be read from or written to at the same time on either end
+
+Data corruption *can* occur when one side reads while the other side writes, try to avoid this situation, or send the value more than one time to be safe
+
+SPC Data Transfer:
+		
+One or more blocks of data can be sent within one transfer event
+Each block is paired with an address in ARAM where the data should be transfered to
+After all blocks of data are sent, one more ARAM address is sent, telling the SPC where to jump execution to when the transfer is complete
+
+1. Wake the SPC from its wait state:
+	- Check if the SPC is waiting by checking Ports 0 and 1 for 0xAA and 0xBB respectively
+	- If the SPC is waiting, tell the SPC that we're ready to send data by sending 0xCC through port 0
+2. Before sending any data, we need to send the SPC the block header, which is telling the SPC where to place this data block in ARAM
+	- Ports 2 and 3 should hold the 16 bit address for where we want to place the data block in ARAM, or where to jump to, if we're done sending data
+	- Port 1 should contain some non-0 number if we're about to transfer data
+	- Port 1 should contain 0 if we are done transfering data and want to transfer the address to jump to
+	- Port 0 should contain some magic number that it will send back to confirm that it recieved all the metadata. For the first block, this must be 0xCC, for other blocks, it can be some non 0 number
+3. Sending a data block
+	- Until now, we have been using a magic number to confirm that we are finished reading data over the I/O ports.
+	- Now, when sending data, the identifier that will be used to make sure the CPUs are in sync, is a simple counter
+	- At the start of the block, this count will be 0, and will count up after each byte sent. After 256 bytes, this count will overflow.
+	- The important part is that each next byte has an index that is just one higher than before
+	- An overflow will not cause any problems, as 0 - 0xFF still = 1
+	
+	- The SNES should send 2 bytes at a time. One at port 0, for the index, and one at port 1, the actual data.
+	- The SPC will send back the index byte that the SNES sent in order to confirm that it has recieved the data byte, and that we can send another one
+	
+	- The SPC keeps track of its own index byte as well, and compares it to the index byte the SNES sends.
+	- If the SPC's index is greater than the one the SNES sent, it means the SNES hasn't sent a new byte over yet, and the data on port 2 is still the old data it already read
+	- If the SPC's index is equal to the one the SNES sent, it means that the SNES has sent its data byte and its the one we're waiting for
+	- If the SPC's counter is less than the one the SNES sent, it means we are done sending our data block. We must keep track of how many bytes we need to send over, and set the index counter to something higher than it should be.
+	- Once the SPC detects this, it will break out of the transfer loop and start working on the next block
