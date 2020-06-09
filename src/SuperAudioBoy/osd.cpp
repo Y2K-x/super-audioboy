@@ -150,9 +150,20 @@ void Osd::dispMain() {
 }
 
 void Osd::updateFiles() {
+	return;
 }
 
 void Osd::dispFiles() {
+	if(!SD.begin(BUILTIN_SDCARD)) {
+		dispNoSD();
+		
+		while(true) {
+			if(SD.begin(BUILTIN_SDCARD)) {
+				break;
+			}
+		}
+	}
+	
 	display.clearDisplay();
 	
 	//draw top info bar
@@ -173,6 +184,21 @@ void Osd::dispFiles() {
 	root.close();
 	
 	display.display();
+	
+	return;
+}
+
+void Osd::dispNoSD() {
+	display.clearDisplay();
+	
+	display.drawBitmap(56, 18, nosd_bmp, 16, 18, SSD1306_WHITE);
+	display.setCursor(49, 39);
+	display.setTextColor(SSD1306_WHITE);
+	display.println(F("NO SD"));
+	
+	display.display();
+	
+	return;
 }
 
 void Osd::update() {
@@ -199,6 +225,8 @@ void Osd::getFileCount(File dir) {
 		
 		entry.close();
 	}
+	
+	return;
 }
 
 void Osd::getFileList(File dir) {
@@ -213,6 +241,8 @@ void Osd::getFileList(File dir) {
 		
 		entry.close();
 	}
+	
+	return;
 }
 
 void Osd::clear() {

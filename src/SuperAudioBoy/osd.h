@@ -24,6 +24,7 @@ class Osd {
 		void dispMain();
 		void updateFiles();
 		void dispFiles();
+		void dispNoSD();
 		void update();
 		void clear();
 		void getFileCount(File dir);

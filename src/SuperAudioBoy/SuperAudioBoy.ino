@@ -42,14 +42,21 @@ void setup() {
 		for(;;) {} //loop infinitely
 	}
 	
+	display->clear();
+	
 	if (!SD.begin(BUILTIN_SDCARD)) {
 		Serial.println("initialization failed!");
-		return;
+		
+		display->dispNoSD();
+		
+		while(true) {
+			if(SD.begin(BUILTIN_SDCARD)) {
+				break;
+			}
+		}
 	}
-	display->clear();
+	
 	display->update();
-	
-	
 }
 
 void loop() {
