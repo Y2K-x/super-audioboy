@@ -60,25 +60,138 @@ void setup() {
 }
 
 void loop() {
-	if(digitalRead(MENU_PIN)) {
-		if(lastState != MENU) {
-			switch(display->getState()) {
-				case display->OSD_MAIN:
-					display->setState(display->OSD_FILE);
-					display->update();
+	switch(display->getState()) {
+		case display->OSD_MAIN:
+			//read menu button state
+			switch(digitalRead(MENU_PIN)) {
+				case 1:
+					if(lastState != MENU) {
+						//display file menu
+						display->setState(display->OSD_FILE);
+						display->dispLoad();
+						display->updateFiles();
+						display->update();
+						
+						Serial.println(display->getFileCount());
+						
+						lastState = MENU;
+					}
+					
 					break;
-				case display->OSD_FILE:
-					display->setState(display->OSD_MAIN);
-					display->update();
+				case 0:
+					if(lastState == MENU) {
+						lastState = NONE;
+					}
+					
 					break;
 			}
-			lastState = MENU;
-		}
-	}
-	else {
-		if(lastState == MENU) {
-			lastState = NONE;
-		}
+			
+			//read reset button state
+			switch(digitalRead(SELECT_PIN)) {
+				case 1:
+					if(lastState != SELECT) {
+						lastState = SELECT;
+					}
+					break;
+				case 0:
+					if(lastState == SELECT) {
+						lastState = NONE;
+					}
+					break;
+			}
+			break;
+		case display->OSD_FILE:
+			//read menu button state
+			switch(digitalRead(MENU_PIN)) {
+				case 1:
+					if(lastState != MENU) {
+						//display main menu
+						display->setState(display->OSD_MAIN);
+						display->update();
+						
+						lastState = MENU;
+					}
+					break;
+				case 0:
+					if(lastState == MENU) {
+						lastState = NONE;
+					}
+					break;
+			}
+			
+			//read up button state
+			switch(digitalRead(UP_PIN)) {
+				case 1:
+					if(lastState != UP) {
+						if(display->getIndex() > 0) {
+							display->setIndex(display->getIndex() - 1);
+							display->update();
+						}
+						else if (display->getPage() > 0) {
+							display->setPage(display->getPage() - 1);
+							display->setIndex(3);
+							display->update();
+						}
+						
+						lastState = UP;
+					}
+					break;
+				case 0:
+					if(lastState == UP) {
+						lastState = NONE;
+					}
+					break;
+			}
+			
+			//read down button state
+			switch(digitalRead(DOWN_PIN)) {
+				case 1:
+					if(lastState != DOWN) {
+							if(display->getIndex() < 3) {
+								if(display->getIndex() + (display->getPage() * 4) < display->getFileCount() - 1) {
+									Serial.println("TRUE");
+									display->setIndex(display->getIndex() + 1);
+									display->update();
+								}
+							}
+							else if(display->getPage() < display->getPageCount() - 1) {
+									display->setPage(display->getPage() + 1);
+									display->setIndex(0);
+									display->update();
+							}
+						Serial.println(display->getIndex() + (display->getPage() * 4));
+						
+						lastState = DOWN;
+					}
+					break;
+				case 0:
+					if(lastState == DOWN) {
+						lastState = NONE;
+					}
+					break;
+			}
+			
+			//read select button state
+			switch(digitalRead(SELECT_PIN)) {
+				case 1:
+					if(lastState != SELECT) {
+						display->setSelectedByIndex(display->getIndex() + (display->getPage() * 4));
+						display->setState(display->OSD_MAIN);
+						display->update();
+						
+						lastState = SELECT;
+					}
+					
+					break;
+				case 0:
+					if(lastState == SELECT) {
+						lastState = NONE;
+					}
+					
+					break;
+			}
+			
+			break;
 	}
 	
 	delay(10);

@@ -85,16 +85,40 @@ static const unsigned char PROGMEM load_bmp[7] = {
 	0xfe
 };
 
+static const unsigned char PROGMEM up_bmp[6] = {
+	0x20, 
+	0x70, 
+	0xa8, 
+	0x20, 
+	0x20, 
+	0x20
+};
+
+static const unsigned char PROGMEM down_bmp[6] = {
+	0x20, 
+	0x20, 
+	0x20, 
+	0xa8, 
+	0x70, 
+	0x20
+};
+
 Osd::Osd(int8_t oled_rst) :
 	display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, oled_rst),
-	osdState(OSD_MAIN)
-{}
+	osdState(OSD_MAIN),
+	index(0),
+	page(0)
+{
+	resetFileList();
+}
 
 int Osd::init() {
 	if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
 		Serial.println("SSD1306 allocation failed!");
 		return -1;
 	}
+	
+	selectedFile = (char*)malloc(13 * sizeof(char));
 	
 	display.cp437(true);
 	
@@ -123,6 +147,13 @@ void Osd::dispLoadIcon() {
 }
 */
 
+
+void Osd::resetFileList() {
+	for(int i = 0; i < 64; i++) {
+		files[i] = (char*)malloc(13 * sizeof(char));
+	}
+}
+
 void Osd::updateMain() {
 	return;
 }
@@ -139,10 +170,17 @@ void Osd::dispMain() {
 	display.drawBitmap(119, 55, rst_bmp, 8, 7, SSD1306_WHITE);
 	
 	//draw center audio visualizer
-	display.drawRect(36, 16, 56, 26, SSD1306_WHITE);
-	display.setCursor(44, 48);
+	display.drawRect(36, 16, 57, 26, SSD1306_WHITE);
 	display.setTextColor(SSD1306_WHITE);
-	display.println(F("NO FILE"));
+	
+	if(strlen(selectedFile) <= 1) {
+		display.setCursor(44, 48);
+		display.println(F("NO FILE"));
+	}
+	else {
+		display.setCursor(29 + ((12 - strlen(selectedFile)) * 3), 48);
+		display.println(selectedFile);
+	}
 	
 	display.display();
 	
@@ -150,10 +188,6 @@ void Osd::dispMain() {
 }
 
 void Osd::updateFiles() {
-	return;
-}
-
-void Osd::dispFiles() {
 	if(!SD.begin(BUILTIN_SDCARD)) {
 		dispNoSD();
 		
@@ -164,6 +198,20 @@ void Osd::dispFiles() {
 		}
 	}
 	
+	File root = SD.open("/");
+	readFileCount(root);
+	root.close();
+	
+	root = SD.open("/");
+	readFileList(root, fileCount);
+	root.close();
+	
+	pageCount = (int)ceil((double)fileCount / 4);
+	
+	return;
+}
+
+void Osd::dispFiles() {	
 	display.clearDisplay();
 	
 	//draw top info bar
@@ -179,9 +227,40 @@ void Osd::dispFiles() {
 		//display.println(F("No SPCs found!"));
 	}
 	
-	File root = SD.open("/");
-	getFileList(root);
-	root.close();
+	display.setCursor(0, 19);
+	display.setTextColor(SSD1306_WHITE);
+	
+	//int index = 0;
+	
+	for(int i = 0; i < 4; i++) {
+		if(i + (page * 4) < fileCount) {
+			if(i == index) {
+				display.print("> ");
+			}
+			
+			display.println(files[i + (page * 4)]);
+		}
+	}
+	
+	/*
+	for(int i = 0; i < 4 && i < fileCount; i++) {
+			if(i == index) {
+				display.print("> ");
+			}
+			display.println(files[i]);
+	}
+	*/
+	
+	if(page <= 0) {
+		display.drawBitmap(121, 43, down_bmp, 8, 6, SSD1306_WHITE);
+	}
+	else if (page >= pageCount - 1) {
+		display.drawBitmap(121, 19, up_bmp, 8, 6, SSD1306_WHITE);
+	}
+	else {
+		display.drawBitmap(121, 19, up_bmp, 8, 6, SSD1306_WHITE);
+		display.drawBitmap(121, 43, down_bmp, 8, 6, SSD1306_WHITE);
+	}
 	
 	display.display();
 	
@@ -201,22 +280,26 @@ void Osd::dispNoSD() {
 	return;
 }
 
+void Osd::dispLoad() {
+	display.drawBitmap(103, 4, load_bmp, 8, 7, SSD1306_WHITE);
+	display.display();
+}
+
 void Osd::update() {
 	if(osdState == OSD_MAIN) {
 		updateMain();
 		dispMain();
 	}
 	else if (osdState == OSD_FILE) {
-		display.drawBitmap(103, 4, load_bmp, 8, 7, SSD1306_WHITE);
-		display.display();
-		updateFiles();
 		dispFiles();
 	}
 	
 	return;
 }
 
-void Osd::getFileCount(File dir) {
+void Osd::readFileCount(File dir) {
+	fileCount = 0;
+	
 	while(true) {
 		File entry = dir.openNextFile();
 		if(!entry) { break; }
@@ -229,14 +312,23 @@ void Osd::getFileCount(File dir) {
 	return;
 }
 
-void Osd::getFileList(File dir) {
-	display.setCursor(0, 16);
+void Osd::readFileList(File dir, int count) {
+	int i = 0;
+	
 	while(true) {
 		File entry = dir.openNextFile();
-		if(!entry){ break; }
+		if(!entry){ 
+			break; 
+		}
 		
 		if(!entry.isDirectory()) {
-			display.println(entry.name());
+			if(i < count || i < 50) {
+				if(files[i] != NULL) {
+					strncpy(files[i], entry.name(), 13);
+				}
+				
+				i++;
+			}
 		}
 		
 		entry.close();
@@ -257,4 +349,34 @@ void Osd::setState(Osd_state state) {
 
 Osd::Osd_state Osd::getState() {
 	return osdState;
+}
+
+void Osd::setIndex(int _index) {
+	index = _index;
+}
+
+int Osd::getFileCount() {
+	return fileCount;
+}
+
+int Osd::getIndex() {
+	return index;
+}
+
+int Osd::getPage() {
+	return page;
+}
+
+void Osd::setPage(int _page) {
+	page = _page;
+}
+
+int Osd::getPageCount() {
+	return pageCount;
+}
+
+void Osd::setSelectedByIndex(int _index) {
+	strncpy(selectedFile, files[_index], 13);
+	Serial.println(strlen(selectedFile));
+	return;
 }
