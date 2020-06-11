@@ -1,3 +1,5 @@
+![Logo](https://github.com/Y2K-x/super-audioboy/raw/master/design/sabLogo.png)
+
 # Super AudioBoy
 
 A portable SPC player using real Super Nintendo audio hardware. Currently a work in progress.
