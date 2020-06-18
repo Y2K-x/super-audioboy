@@ -304,7 +304,11 @@ void Osd::readFileCount(File dir) {
 		File entry = dir.openNextFile();
 		if(!entry) { break; }
 
-		if(!entry.isDirectory()) { fileCount += 1; }
+		if(!entry.isDirectory()) {
+			if(strstr(entry.name(), ".SPC")) {
+				fileCount += 1; 
+			}
+		}
 		
 		entry.close();
 	}
@@ -324,7 +328,10 @@ void Osd::readFileList(File dir, int count) {
 		if(!entry.isDirectory()) {
 			if(i < count || i < 50) {
 				if(files[i] != NULL) {
-					strncpy(files[i], entry.name(), 13);
+					//Serial.println(strstr(entry.name(), ".SPC"));
+					if(strstr(entry.name(), ".SPC")) {
+						strncpy(files[i], entry.name(), 13);
+					}
 				}
 				
 				i++;
