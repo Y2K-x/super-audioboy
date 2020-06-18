@@ -789,13 +789,13 @@ $EndBitmap
 $Comp
 L Connector:Conn_01x04_Female J1
 U 1 1 5EEB691A
-P 9000 3050
-F 0 "J1" V 9100 3000 50  0000 C CNN
-F 1 "ssd1306" V 9200 2850 50  0000 L CNN
-F 2 "Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical" H 9000 3050 50  0001 C CNN
-F 3 "~" H 9000 3050 50  0001 C CNN
-	1    9000 3050
-	1    0    0    -1  
+P 9000 3150
+F 0 "J1" V 9100 3100 50  0000 C CNN
+F 1 "ssd1306" V 9200 2950 50  0000 L CNN
+F 2 "Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical" H 9000 3150 50  0001 C CNN
+F 3 "~" H 9000 3150 50  0001 C CNN
+	1    9000 3150
+	1    0    0    1   
 $EndComp
 $Comp
 L Device:R_US R6
