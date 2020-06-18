@@ -1,21 +1,14 @@
-#include <Wire.h>
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_GFX.h>
 #include <SD.h>
 #include <SPI.h>
+#include <Wire.h>
 #include "osd.h"
 
 #define MENU_PIN 32
 #define UP_PIN 31
 #define DOWN_PIN 30
 #define SELECT_PIN 29
-
-Osd *display;
-
-int menu = 0;
-int up = 0;
-int down = 0;
-int sel = 0;
 
 enum Inputs {
 	MENU,
@@ -26,6 +19,13 @@ enum Inputs {
 };
 
 Inputs lastState = NONE;
+
+int menu = 0;
+int up = 0;
+int down = 0;
+int sel = 0;
+
+Osd *display;
 
 void setup() {
 	Serial.begin(9600);
@@ -47,7 +47,7 @@ void setup() {
 	if (!SD.begin(BUILTIN_SDCARD)) {
 		Serial.println("initialization failed!");
 		
-		display->dispNoSD();
+		display->drawNoSD();
 		
 		while(true) {
 			if(SD.begin(BUILTIN_SDCARD)) {
@@ -60,6 +60,11 @@ void setup() {
 }
 
 void loop() {
+	pollInput();
+	delay(10);
+}
+
+void pollInput() {
 	switch(display->getState()) {
 		case display->OSD_MAIN:
 			//read menu button state
@@ -68,7 +73,7 @@ void loop() {
 					if(lastState != MENU) {
 						//display file menu
 						display->setState(display->OSD_FILE);
-						display->dispLoad();
+						display->drawLoad();
 						display->updateFiles();
 						display->update();
 						
@@ -194,5 +199,5 @@ void loop() {
 			break;
 	}
 	
-	delay(10);
+	return;
 }
